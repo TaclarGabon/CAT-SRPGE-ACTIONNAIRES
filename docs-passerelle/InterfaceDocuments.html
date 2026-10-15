@@ -12,6 +12,7 @@ const call=(fn,data)=>new Promise((resolve,reject)=>{google.script.run.withSucce
 let uid='';
 const params=new URLSearchParams(location.search);
 const initialOp=params.get('operationId');if(initialOp)el('operation').value=initialOp;
+const initialOwner=params.get('ownerUid');if(initialOwner)el('ownerUid').value=initialOwner;
 await setPersistence(auth,inMemoryPersistence);
 onAuthStateChanged(auth,u=>{uid=u?.uid||'';el('login').classList.toggle('hidden',!!u);el('workspace').classList.toggle('hidden',!u);el('who').textContent=u?'Connecté : '+u.email:'';el('documents').replaceChildren();});
 el('connect').onclick=async()=>{try{await signInWithEmailAndPassword(auth,el('email').value.trim(),el('password').value);el('password').value='';msg('Connecté. Sélectionne une souscription.')}catch(e){msg('Connexion impossible. Vérifie les identifiants.')}};
