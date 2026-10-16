@@ -70,6 +70,14 @@ function catFolder_(uid,operationId,create) {
   const perso=catChild_(root,'UID-'+uid,create);
   return perso?catChild_(perso,'OPID-'+operationId,create):null;
 }
+// Le nom visible est informatif : seul UID + OPID détermine les droits.
+function catSafeLabel_(value, fallback) {
+  const x=String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^A-Za-z0-9 _-]/g,' ').replace(/\\s+/g,' ').trim().slice(0,55);
+  return x||fallback;
+}
+function catProjectLabel_(op) {
+  return catSafeLabel_(op&& (op.projet||op.projetInitialementVise||op.filiale||op.nomProjet||op.project), 'Souscription');
+}
 function catMimeOk_(bytes,mime) {
   const x=bytes.slice(0,8).map(n=>(n+256)%256);
   if(mime==='application/pdf')return x[0]===37&&x[1]===80&&x[2]===68&&x[3]===70;
@@ -81,7 +89,7 @@ function catUpload(args) {
   const actor=catPrincipal_(args&&args.idToken);
   const uid=args.ownerUid, opId=args.operationId, type=args.type;
   if(actor.uid!==uid)throw Error('Seul le propriétaire peut déposer ses documents');
-  catRole_(actor,uid,opId);
+  const role=catRole_(actor,uid,opId);
   if(!CAT_DOC.types.includes(type))throw Error('Type de pièce invalide');
   if(!CAT_DOC.mime.includes(args.mime))throw Error('Format non accepté');
   if(typeof args.base64!=='string'||args.base64.length>CAT_DOC.maxBytes*1.38)throw Error('Fichier trop volumineux');
@@ -101,7 +109,7 @@ function catUpload(args) {
     if(!entry||!Number.isFinite(entry.start)||now-entry.start>=3600000||now<entry.start)entry={start:now,count:0};
     if(entry.count>=12)throw Error('Limite de 12 dépôts par heure atteinte.');
     const folder=catFolder_(uid,opId,true);
-    const name=type+'-'+Utilities.getUuid()+'.'+ext;
+    const name=catSafeLabel_(type==='bulletin'?'Bulletin de souscription':'Justificatif de versement','Document')+' — '+catProjectLabel_(role.op)+' — '+Utilities.getUuid()+'.'+ext;
     const f=folder.createFile(Utilities.newBlob(bytes,args.mime,name));
     f.setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.NONE);
     props.setProperty(key,JSON.stringify({start:entry.start,count:entry.count+1}));
