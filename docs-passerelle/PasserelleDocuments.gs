@@ -84,21 +84,29 @@ function catUpload(args) {
   catRole_(actor,uid,opId);
   if(!CAT_DOC.types.includes(type))throw Error('Type de pièce invalide');
   if(!CAT_DOC.mime.includes(args.mime))throw Error('Format non accepté');
-  // Limite élémentaire anti-abus par compte / heure (à valider avant ouverture publique).
-  const quotaKey='cat-upload-'+uid;
-  const cache=CacheService.getScriptCache();
-  const count=Number(cache.get(quotaKey)||0);
-  if(count>=12)throw Error('Limite temporaire de dépôts atteinte. Réessaie plus tard.');
   if(typeof args.base64!=='string'||args.base64.length>CAT_DOC.maxBytes*1.38)throw Error('Fichier trop volumineux');
   const bytes=Utilities.base64Decode(args.base64);
   if(bytes.length>CAT_DOC.maxBytes||!catMimeOk_(bytes,args.mime))throw Error('Contenu de fichier non conforme');
   const ext= args.mime==='application/pdf'?'pdf':args.mime==='image/png'?'png':'jpg';
-  const folder=catFolder_(uid,opId,true);
-  const name=type+'-'+Utilities.getUuid()+'.'+ext;
-  const f=folder.createFile(Utilities.newBlob(bytes,args.mime,name));
-  f.setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.NONE);
-  cache.put(quotaKey,String(count+1),3600);
-  return {ok:true,fileId:f.getId(),name:f.getName(),type,operationId:opId};
+  // Compteur synchronisé : évite qu'un acteur contourne une limite
+  // en lançant plusieurs dépôts simultanément. Quota par UID sur 1 heure.
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(10000))throw Error('Dépôt momentanément occupé. Réessaie.');
+  try {
+    const props=PropertiesService.getScriptProperties();
+    const key='CAT_QUOTA_'+uid;
+    const now=Date.now();
+    let entry;
+    try{entry=JSON.parse(props.getProperty(key)||'null')}catch(_){entry=null}
+    if(!entry||!Number.isFinite(entry.start)||now-entry.start>=3600000||now<entry.start)entry={start:now,count:0};
+    if(entry.count>=12)throw Error('Limite de 12 dépôts par heure atteinte.');
+    const folder=catFolder_(uid,opId,true);
+    const name=type+'-'+Utilities.getUuid()+'.'+ext;
+    const f=folder.createFile(Utilities.newBlob(bytes,args.mime,name));
+    f.setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.NONE);
+    props.setProperty(key,JSON.stringify({start:entry.start,count:entry.count+1}));
+    return {ok:true,fileId:f.getId(),name:f.getName(),type,operationId:opId};
+  } finally {lock.releaseLock()}
 }
 function catList(args) {
   const actor=catPrincipal_(args&&args.idToken);
