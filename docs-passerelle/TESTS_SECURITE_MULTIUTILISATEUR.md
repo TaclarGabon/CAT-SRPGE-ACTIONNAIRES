@@ -38,3 +38,11 @@
 
 ## État actuel
 L'OPID depuis l'URL a été prérempli avec succès sur V3, un document fictif a été retrouvé. Cette preuve ne démontre **pas** le fonctionnement ouvert à plusieurs actionnaires. La V3 reste privée.
+
+## Résultats observés — pilote privé V4 (15 octobre 2026)
+- **PASS (observé)** : compte A liste et télécharge son PDF fictif ; compte B Marie Demo accède à son dossier, dépose et retrouve un PDF fictif.
+- **PASS (observé)** : compte B avec OPID-A et UID vide obtient « La souscription ne correspond pas à ce dossier » ; avec UID-A+OPID-A obtient « Authentification ou accès refusé ».
+- **PASS (observé)** : compte Direction liste et télécharge le PDF de B ; tentative de dépôt en tant que Direction dans le dossier de B refusée (« Seul le propriétaire peut déposer ses documents »).
+- **PASS (observé)** : fenêtre Chrome privée non authentifiée Google CAT reçoit un refus d'accès à la V4.
+- **NON TESTÉ** : contournements avec ID fichier d'un autre dossier, MIME falsifié, débits concurrents, limite 12/h, sécurité à l'ouverture à d'autres comptes Google.
+- **Décision** : conserver « Moi uniquement » ; l'étape 2 n'est PAS achevée pour le grand public. La V4 a été déployée et fonctionne pour le pilote privé.
