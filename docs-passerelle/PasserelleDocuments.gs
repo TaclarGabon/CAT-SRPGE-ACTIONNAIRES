@@ -109,7 +109,8 @@ function catUpload(args) {
     if(!entry||!Number.isFinite(entry.start)||now-entry.start>=3600000||now<entry.start)entry={start:now,count:0};
     if(entry.count>=12)throw Error('Limite de 12 dépôts par heure atteinte.');
     const folder=catFolder_(uid,opId,true);
-    const name=catSafeLabel_(type==='bulletin'?'Bulletin de souscription':'Justificatif de versement','Document')+' — '+catProjectLabel_(role.op)+' — '+Utilities.getUuid()+'.'+ext;
+    const original=catSafeLabel_(String(args.originalName||'').replace(/\\.[A-Za-z0-9]+$/,''),'Fichier');
+    const name=(type==='bulletin'?'Bulletin de souscription':'Justificatif de versement')+' — '+catProjectLabel_(role.op)+' — '+original+' — '+Utilities.getUuid()+'.'+ext;
     const f=folder.createFile(Utilities.newBlob(bytes,args.mime,name));
     f.setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.NONE);
     props.setProperty(key,JSON.stringify({start:entry.start,count:entry.count+1}));
