@@ -4,9 +4,9 @@
  * Ne JAMAIS exposer les autorisations Drive dans un GitHub Pages public.
  * Prérequis : propriétés du script ROOT_FOLDER_ID (ID dossier privé)
  *              et FIREBASE_API_KEY (clé WEB publique du projet).
- * Web app exécute comme PROPRIÉTAIRE, accès "Tout le monde" possible UNIQUEMENT
- * après authentification Firebase applicative vérifiée par les méthodes ci-dessous.
- * À NE PAS DÉPLOYER avant tests de permissions et contrôle des quotas.
+ * Web app exécute comme PROPRIÉTAIRE. NE PAS ouvrir à "Tout le monde"
+ * avant les tests de séparation des comptes, anti-abus et quotas.
+ * Toute validation de droits doit être faite côté serveur.
  */
 const CAT_DOC = Object.freeze({
   database: 'https://cat-collectif-actionnaires-default-rtdb.europe-west1.firebasedatabase.app',
@@ -42,6 +42,8 @@ function catDossier_(uid,token) {
   return obj;
 }
 function catRole_(actor,ownerUid,operationId) {
+  if(typeof ownerUid!=='string'||!(/^[A-Za-z0-9]{10,128}$/).test(ownerUid))throw Error('Dossier invalide');
+  if(typeof operationId!=='string'||!(/^[A-Za-z0-9-]{8,150}$/).test(operationId)||!operationId.startsWith('op-'))throw Error('Identifiant opération invalide');
   let owner=false, dossier;
   if(actor.uid===ownerUid) {
     dossier=catDossier_(ownerUid,actor.token);
@@ -52,7 +54,6 @@ function catRole_(actor,ownerUid,operationId) {
     catFetchJson_(CAT_DOC.database+'/dossiers.json?auth='+encodeURIComponent(actor.token));
     dossier=catDossier_(ownerUid,actor.token);
   }
-  if(typeof operationId!=='string'||operationId.length>150)throw Error('Identifiant opération invalide');
   const op=dossier.projets.find(x=>x&&x.operationId===operationId);
   if(!op) throw Error('La souscription ne correspond pas à ce dossier');
   return {owner,op};
@@ -83,6 +84,11 @@ function catUpload(args) {
   catRole_(actor,uid,opId);
   if(!CAT_DOC.types.includes(type))throw Error('Type de pièce invalide');
   if(!CAT_DOC.mime.includes(args.mime))throw Error('Format non accepté');
+  // Limite élémentaire anti-abus par compte / heure (à valider avant ouverture publique).
+  const quotaKey='cat-upload-'+uid;
+  const cache=CacheService.getScriptCache();
+  const count=Number(cache.get(quotaKey)||0);
+  if(count>=12)throw Error('Limite temporaire de dépôts atteinte. Réessaie plus tard.');
   if(typeof args.base64!=='string'||args.base64.length>CAT_DOC.maxBytes*1.38)throw Error('Fichier trop volumineux');
   const bytes=Utilities.base64Decode(args.base64);
   if(bytes.length>CAT_DOC.maxBytes||!catMimeOk_(bytes,args.mime))throw Error('Contenu de fichier non conforme');
@@ -91,6 +97,7 @@ function catUpload(args) {
   const name=type+'-'+Utilities.getUuid()+'.'+ext;
   const f=folder.createFile(Utilities.newBlob(bytes,args.mime,name));
   f.setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.NONE);
+  cache.put(quotaKey,String(count+1),3600);
   return {ok:true,fileId:f.getId(),name:f.getName(),type,operationId:opId};
 }
 function catList(args) {
