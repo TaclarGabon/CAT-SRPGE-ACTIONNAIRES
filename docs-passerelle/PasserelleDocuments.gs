@@ -72,11 +72,16 @@ function catFolder_(uid,operationId,create) {
 }
 // Le nom visible est informatif : seul UID + OPID détermine les droits.
 function catSafeLabel_(value, fallback) {
-  const x=String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^A-Za-z0-9 _-]/g,' ').replace(/\\s+/g,' ').trim().slice(0,55);
+  const x=String(value||'').normalize('NFD')
+    .replace(new RegExp('[\\u0300-\\u036f]','g'),'')
+    .replace(new RegExp('[^A-Za-z0-9 _-]','g'),' ')
+    .replace(new RegExp('\\s+','g'),' ')
+    .trim().slice(0,80);
   return x||fallback;
 }
 function catProjectLabel_(op) {
-  return catSafeLabel_(op&& (op.projet||op.projetInitialementVise||op.filiale||op.nomProjet||op.project), 'Souscription');
+  const value=op&&(op.projet||op.projetInitialementVise||op.filiale||op.nomProjet||op.project);
+  return catSafeLabel_(value,'Projet non renseigne');
 }
 function catMimeOk_(bytes,mime) {
   const x=bytes.slice(0,8).map(n=>(n+256)%256);
