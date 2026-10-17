@@ -166,6 +166,31 @@ function catArchiveTests(args) {
   for(const f of items)f.moveTo(target);
   return {ok:true,count:items.length};
 }
+
+/** V11 : annuaire autorisé, toujours calculé côté serveur avec le jeton Firebase. */
+function catDirectoryV11(args) {
+  const actor=catPrincipal_(args&&args.idToken);
+  let dossiers, admin=false;
+  try {
+    dossiers=catFetchJson_(CAT_DOC.database+'/dossiers.json?auth='+encodeURIComponent(actor.token));
+    admin=true;
+  } catch (_) {
+    dossiers={};
+    dossiers[actor.uid]=catDossier_(actor.uid,actor.token);
+  }
+  const out=[];
+  for(const [ownerUid,dossier] of Object.entries(dossiers||{})) {
+    if(!dossier||!Array.isArray(dossier.projets))continue;
+    const p=dossier.profil||{};
+    const name=[p.prenom1,p.prenom2,p.nom1,p.nom2].filter(Boolean).join(' ').trim()||dossier.email||ownerUid;
+    const projects=dossier.projets.filter(x=>x&&typeof x.operationId==='string'&&/^op-[A-Za-z0-9-]{8,150}$/.test(x.operationId)).map(x=>({operationId:x.operationId,projet:catProjectLabel_(x)}));
+    if(projects.length)out.push({ownerUid,name,projects});
+    if(out.length>=1000)break;
+  }
+  out.sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  return {admin,shareholders:out};
+}
+
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('InterfaceDocuments').setTitle('CAT-SRPGE — Pièces justificatives');
 }
