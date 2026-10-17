@@ -147,6 +147,25 @@ function catDownload(args) {
   if(file.getSize()>CAT_DOC.maxBytes)throw Error('Document trop volumineux');
   return {name:file.getName(),mime:file.getMimeType(),base64:Utilities.base64Encode(file.getBlob().getBytes())};
 }
+function catArchiveTests(args) {
+  const actor=catPrincipal_(args&&args.idToken);
+  if(!args||actor.uid!==args.ownerUid)throw Error('Archivage reserve au titulaire du dossier');
+  catRole_(actor,args.ownerUid,args.operationId);
+  if(args.confirmation!=='ARCHIVER TESTS')throw Error('Confirmation explicite requise');
+  const folder=catFolder_(args.ownerUid,args.operationId,false);
+  if(!folder)return {ok:true,count:0};
+  const root=DriveApp.getFolderById(catProps_().rootId);
+  const archiveRoot=catChild_(root,'_ARCHIVES_TESTS_CAT_SRPGE',true);
+  const ownerArchive=catChild_(archiveRoot,'UID-'+actor.uid,true);
+  const target=catChild_(ownerArchive,'OPID-'+args.operationId,true);
+  const files=folder.getFiles(),items=[];
+  while(files.hasNext()){
+    if(items.length>=100)throw Error('Trop de fichiers: archivage manuel necessaire');
+    items.push(files.next());
+  }
+  for(const f of items)f.moveTo(target);
+  return {ok:true,count:items.length};
+}
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('InterfaceDocuments').setTitle('CAT-SRPGE — Pièces justificatives');
 }
