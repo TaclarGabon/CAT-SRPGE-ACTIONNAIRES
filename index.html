@@ -47,7 +47,7 @@ function watchReviews(u){
      return (p.projet||'Projet')+' : '+(v.etat||'Dossier transmis — en attente de contrôle')+
        (v.observation?' — Message Direction : '+v.observation:'');
    });
-   $('reviewTimeline').textContent=lines.length?lines.join('\\n'):'Aucun projet enregistré.';
+   $('reviewTimeline').textContent=lines.length?lines.join('\n'):'Aucun projet enregistré.';
    $('reviewTimeline').style.whiteSpace='pre-line';
  },_=>{$('reviewTimeline').textContent='Suivi temporairement indisponible : accès Firebase à vérifier.'});
 }
