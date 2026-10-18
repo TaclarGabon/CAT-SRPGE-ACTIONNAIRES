@@ -56,6 +56,7 @@ el('person').onchange=()=>{
   for(const p of who?.projects||[]){const label=[p.projet,p.dateSouscription||'Date non précisée',p.actionsDeclarees!=null?p.actionsDeclarees+' action(s)':''].filter(Boolean).join(' — ');select.add(new Option(label,p.operationId));}
   el('documents').replaceChildren();el('archive').classList.add('hidden');if(!directoryAdmin&&select.options.length===2){select.selectedIndex=1;el('simpleLoad').click();}
 };
+el('project').onchange=()=>{el('operation').value='';el('documents').replaceChildren();el('archive').classList.add('hidden');};
 el('simpleLoad').onclick=()=>{
   const person=directory.find(x=>x.ownerUid===el('person').value);
   const opId=el('project').value;
