@@ -1,7 +1,21 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base target="_top"><title>CAT-SRPGE — Documents</title><style>
 body{font:16px system-ui,Arial;background:#f2f6fa;color:#173451;margin:0;padding:22px}.panel{max-width:680px;margin:auto;background:white;border-radius:16px;border:1px solid #d6e4ee;padding:24px;box-shadow:0 4px 24px #0001}input,select,button{box-sizing:border-box;width:100%;padding:12px;border:1px solid #bac9d5;border-radius:9px;margin:6px 0 12px}button{background:#1a5ab7;color:white;cursor:pointer;border:0;font-weight:650}button:disabled{opacity:.5;cursor:not-allowed}.muted{color:#576b7d;font-size:13px}.hidden{display:none}.file{padding:8px;border-bottom:1px solid #e0e8ef}#message{padding:10px;white-space:pre-wrap}</style></head><body><div class="panel"><h1>CAT-SRPGE — Mes justificatifs</h1><p class="muted">Version de développement. Utilise uniquement des fichiers fictifs. Les documents restent privés dans Google Drive.</p>
 <div id="login"><label>Adresse e-mail Firebase<input id="email" type="email" autocomplete="off"></label><label>Mot de passe<input id="password" type="password" autocomplete="off"></label><button id="connect">Connexion</button></div>
-<div id="workspace" class="hidden"><p id="who"></p><button id="disconnect">Déconnexion</button><section id="simple" style="border:2px solid #bfd4ed;background:#f3f8ff;padding:14px;border-radius:12px;margin:12px 0"><h2 style="font-size:19px;margin:0 0 9px">Consultation simplifiée — V11</h2><button id="directory">Charger mes dossiers / annuaire Direction</button><label>Actionnaire<select id="person"><option value="">Charger l'annuaire d'abord</option></select></label><label>Projet<select id="project"><option value="">Choisir un actionnaire</option></select></label><button id="simpleLoad">Afficher les justificatifs de ce projet</button><p class="muted" id="directoryStatus">Les identifiants seront renseignés automatiquement.</p></section><details><summary style="cursor:pointer;font-weight:650;margin:8px 0">Saisie manuelle UID / OPID (mode technique)</summary><label>UID du dossier actionnaire à consulter (laisser vide pour son propre dossier ; responsables uniquement pour un autre dossier)<input id="ownerUid" placeholder="UID Firebase actionnaire" autocomplete="off"></label><label>Identifiant permanent de la souscription<input id="operation" placeholder="op-..." autocomplete="off"></label><button id="load">Afficher les documents (manuel)</button></details><div id="documents"></div><button id="archive" style="background:#6b7280" class="hidden">Archiver les documents affichés (tests)</button><hr><label>Type de document<select id="type"><option value="bulletin">Bulletin de souscription</option><option value="justificatif">Justificatif de versement</option></select></label><label>PDF ou image fictive (4 Mo maximum)<input id="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"></label><button id="upload">Joindre le fichier</button></div><p id="message" role="status"></p></div>
+<div id="workspace" class="hidden"><p id="who"></p><button id="disconnect">Déconnexion</button><section id="simple" style="border:2px solid #bfd4ed;background:#f3f8ff;padding:14px;border-radius:12px;margin:12px 0">
+<h2 style="font-size:19px;margin:0 0 9px">1. Choisir ma souscription</h2>
+<p class="muted">Tes souscriptions enregistrées sont retrouvées automatiquement. Aucun UID ni OPID à recopier.</p>
+<button id="directory" type="button">Actualiser mes souscriptions</button>
+<div id="adminPerson" class="hidden"><label>Actionnaire (Direction uniquement)<select id="person"><option value="">Charger l'annuaire</option></select></label></div>
+<label>Souscription<select id="project"><option value="">Connecte-toi pour charger tes souscriptions</option></select></label>
+<button id="simpleLoad" type="button">Afficher mes documents déjà déposés</button>
+<p class="muted" id="directoryStatus">Les références techniques sont gérées automatiquement.</p>
+</section>
+<details id="adminTech" class="hidden"><summary>Références techniques (Direction autorisée)</summary>
+<label>UID du dossier<input id="ownerUid" autocomplete="off"></label>
+<label>OPID de la souscription<input id="operation" autocomplete="off"></label>
+<button id="load" type="button">Afficher les documents (technique)</button></details>
+<h2 style="font-size:18px">2. Mes documents déjà déposés</h2>
+<div id="documents"></div><button id="archive" style="background:#6b7280" class="hidden">Archiver les documents affichés (tests)</button><hr><h2 style="font-size:18px">3. Ajouter un document fictif</h2><label>Type de document<select id="type"><option value="bulletin">Bulletin de souscription</option><option value="justificatif">Justificatif de versement</option></select></label><label>PDF ou image fictive (4 Mo maximum)<input id="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"></label><button id="upload">Joindre le fichier</button></div><p id="message" role="status"></p></div>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,setPersistence,inMemoryPersistence}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
@@ -10,7 +24,7 @@ const auth=getAuth(initializeApp(cfg)), el=id=>document.getElementById(id);
 const msg=s=>el('message').textContent=s;
 const call=(fn,data)=>new Promise((resolve,reject)=>{google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](data)});
 let uid='';let directory=[];let directoryAdmin=false;
-const clearDirectory=()=>{directory=[];directoryAdmin=false;el('person').replaceChildren(new Option('Charger l’annuaire d’abord',''));el('project').replaceChildren(new Option('Choisir un actionnaire',''));el('directoryStatus').textContent='Les identifiants seront renseignés automatiquement.';};
+const clearDirectory=()=>{directory=[];directoryAdmin=false;el('person').replaceChildren(new Option('Charger l’annuaire d’abord',''));el('project').replaceChildren(new Option('Choisir une souscription',''));el('adminPerson').classList.add('hidden');el('adminTech').classList.add('hidden');el('directoryStatus').textContent='Les identifiants seront renseignés automatiquement.';};
 // Dans Apps Script HTML Service, location.search peut décrire l'iframe interne
 // plutôt que l'URL /exec. Lire les paramètres via l'API officielle du conteneur.
 google.script.url.getLocation(loc=>{
@@ -19,9 +33,9 @@ google.script.url.getLocation(loc=>{
   if(typeof p.ownerUid==='string'&&/^[A-Za-z0-9]{10,128}$/.test(p.ownerUid))el('ownerUid').value=p.ownerUid;
 });
 await setPersistence(auth,inMemoryPersistence);
-onAuthStateChanged(auth,u=>{const nextUid=u?.uid||'';if(uid&&uid!==nextUid){el('ownerUid').value='';el('operation').value='';el('file').value='';clearDirectory();}uid=nextUid;el('login').classList.toggle('hidden',!!u);el('workspace').classList.toggle('hidden',!u);el('who').textContent=u?'Connecté : '+u.email:'';el('documents').replaceChildren();el('archive').classList.add('hidden');});
+onAuthStateChanged(auth,u=>{const nextUid=u?.uid||'';if(uid&&uid!==nextUid){el('ownerUid').value='';el('operation').value='';el('file').value='';clearDirectory();}uid=nextUid;el('login').classList.toggle('hidden',!!u);el('workspace').classList.toggle('hidden',!u);if(!u)clearDirectory();el('who').textContent=u?'Connecté : '+u.email:'';el('documents').replaceChildren();el('archive').classList.add('hidden');});
 
-el('directory').onclick=async()=>{
+async function chargerDirectory(){
   try{
     msg('Chargement des dossiers autorisés…');
     const u=auth.currentUser;if(!u)throw Error('Connexion requise');
@@ -30,30 +44,31 @@ el('directory').onclick=async()=>{
     const sel=el('person');sel.replaceChildren(new Option('Choisir un actionnaire',''));
     for(const person of directory)sel.add(new Option(person.name+' ('+person.projects.length+' projet(s))',person.ownerUid));
     el('project').replaceChildren(new Option('Choisir un actionnaire',''));
-    el('directoryStatus').textContent=(directoryAdmin?'Annuaire Direction':'Mes projets')+' : '+directory.length+' actionnaire(s) disponibles.';
+    el('directoryStatus').textContent=(directoryAdmin?'Annuaire Direction':'Mes souscriptions')+' : '+directory.length+' dossier(s) disponibles.';el('adminPerson').classList.toggle('hidden',!directoryAdmin);el('adminTech').classList.toggle('hidden',!directoryAdmin);
     if(!directoryAdmin&&directory.length===1){sel.value=directory[0].ownerUid;sel.dispatchEvent(new Event('change'));}
-    msg('Dossiers chargés. Sélectionne un projet.');
-  }catch(e){msg('Annuaire indisponible : '+(e.message||'Erreur'));clearDirectory();}
-};
+    msg('Souscriptions chargées. Choisis la souscription concernée.');
+  }catch(e){msg('Souscriptions indisponibles : '+(e.message||'Erreur'));clearDirectory();}
+}
+el('directory').onclick=chargerDirectory;
 el('person').onchange=()=>{
   const who=directory.find(x=>x.ownerUid===el('person').value);
   const select=el('project');select.replaceChildren(new Option('Choisir un projet',''));
-  for(const p of who?.projects||[])select.add(new Option(p.projet,p.operationId));
-  el('documents').replaceChildren();el('archive').classList.add('hidden');
+  for(const p of who?.projects||[]){const label=[p.projet,p.dateSouscription||'Date non précisée',p.actionsDeclarees!=null?p.actionsDeclarees+' action(s)':''].filter(Boolean).join(' — ');select.add(new Option(label,p.operationId));}
+  el('documents').replaceChildren();el('archive').classList.add('hidden');if(!directoryAdmin&&select.options.length===2){select.selectedIndex=1;el('simpleLoad').click();}
 };
 el('simpleLoad').onclick=()=>{
   const person=directory.find(x=>x.ownerUid===el('person').value);
   const opId=el('project').value;
-  if(!person||!person.projects.some(x=>x.operationId===opId)){msg('Choisis un actionnaire et un projet.');return}
+  if(!person||!person.projects.some(x=>x.operationId===opId)){msg('Choisis une souscription.');return}
   el('ownerUid').value=person.ownerUid===uid?'':person.ownerUid;
   el('operation').value=opId;
   el('load').click();
 };
 
-el('connect').onclick=async()=>{try{await signInWithEmailAndPassword(auth,el('email').value.trim(),el('password').value);el('password').value='';msg('Connecté. Sélectionne une souscription.')}catch(e){msg('Connexion impossible. Vérifie les identifiants.')}};
+el('connect').onclick=async()=>{try{await signInWithEmailAndPassword(auth,el('email').value.trim(),el('password').value);el('password').value='';msg('Connecté. Chargement des souscriptions…');await chargerDirectory();}catch(e){msg('Connexion impossible. Vérifie les identifiants.')}};
 el('disconnect').onclick=async()=>{el('ownerUid').value='';el('operation').value='';el('file').value='';clearDirectory();el('documents').replaceChildren();el('archive').classList.add('hidden');await signOut(auth);msg('Déconnecté. Les références du dossier ont été effacées.');};
 async function argumentsAuth(){const u=auth.currentUser;if(!u)throw Error('Connexion requise');return {ownerUid:el('ownerUid').value.trim()||u.uid,idToken:await u.getIdToken(),operationId:el('operation').value.trim()}}
 el('load').onclick=async()=>{try{msg('Chargement…');const x=await argumentsAuth();const files=await call('catList',x);const list=el('documents');list.replaceChildren();el('archive').classList.toggle('hidden',!files.length||x.ownerUid!==uid);for(const f of files){const row=document.createElement('div');row.className='file';const b=document.createElement('button');b.textContent='Ouvrir : '+String(f.name||'').replace(/\s*—\s*[0-9a-f]{8}-[0-9a-f-]{27,}\.([A-Za-z0-9]+)$/i,'.$1').replace(/\s*—\s*Souscription(?=\.|\s*—)/gi,'');b.onclick=async()=>{try{msg('Ouverture…');const data=await call('catDownload',{...await argumentsAuth(),fileId:f.id});const binary=atob(data.base64),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);const url=URL.createObjectURL(new Blob([bytes],{type:data.mime}));const a=document.createElement('a');a.href=url;a.download=data.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);msg('Document téléchargé.')}catch(e){msg(e.message||'Ouverture refusée')}};row.append(b);list.append(row)}msg(files.length+' document(s) trouvé(s).')}catch(e){msg(e.message||'Accès refusé.')}}; 
 el('archive').onclick=async()=>{const x=await argumentsAuth();if(x.ownerUid!==uid){msg('Archivage reserve au titulaire');return}if(!confirm('Archiver TOUS les documents affiches pour cette operation ? Ils disparaitront de la liste sans etre supprimes du Drive.'))return;const phrase=prompt('Pour confirmer, ecris exactement : ARCHIVER TESTS');if(phrase!=='ARCHIVER TESTS'){msg('Archivage annule.');return}const b=el('archive');b.disabled=true;try{const result=await call('catArchiveTests',{...x,confirmation:phrase});msg(result.count+' fichier(s) archives dans le Drive prive. Clique sur Afficher les documents.');el('documents').replaceChildren();b.classList.add('hidden')}catch(e){msg(e.message||'Archivage refuse')}finally{b.disabled=false}};
-el('upload').onclick=async()=>{const f=el('file').files[0];if(!f){msg('Sélectionne un document fictif.');return}if(f.size>4*1024*1024){msg('Maximum 4 Mo');return}if(!['application/pdf','image/png','image/jpeg'].includes(f.type)){msg('Format non accepté');return}const b=el('upload');b.disabled=true;try{msg('Envoi en cours…');const x=await argumentsAuth();const raw=await f.arrayBuffer(),bytes=new Uint8Array(raw);let str='';for(let i=0;i<bytes.length;i+=8192)str+=String.fromCharCode(...bytes.slice(i,i+8192));const result=await call('catUpload',{...x,type:el('type').value,mime:f.type,originalName:f.name,base64:btoa(str)});msg(result.ok?'Fichier enregistré. Clique sur Afficher les documents.':'Envoi non confirmé');el('file').value=''}catch(e){msg(e.message||'Échec de l’envoi')}finally{b.disabled=false}};
+el('upload').onclick=async()=>{const f=el('file').files[0];if(!f){msg('Sélectionne un document fictif.');return}if(f.size>4*1024*1024){msg('Maximum 4 Mo');return}if(!['application/pdf','image/png','image/jpeg'].includes(f.type)){msg('Format non accepté');return}const b=el('upload');b.disabled=true;try{msg('Envoi en cours…');const x=await argumentsAuth();if(!directory.some(p=>p.ownerUid===x.ownerUid&&p.projects.some(q=>q.operationId===x.operationId)))throw Error('Choisis une souscription dans la liste.');const raw=await f.arrayBuffer(),bytes=new Uint8Array(raw);let str='';for(let i=0;i<bytes.length;i+=8192)str+=String.fromCharCode(...bytes.slice(i,i+8192));const result=await call('catUpload',{...x,type:el('type').value,mime:f.type,originalName:f.name,base64:btoa(str)});msg(result.ok?'Fichier enregistré. Clique sur Afficher les documents.':'Envoi non confirmé');el('file').value=''}catch(e){msg(e.message||'Échec de l’envoi')}finally{b.disabled=false}};
 </script></body></html>
