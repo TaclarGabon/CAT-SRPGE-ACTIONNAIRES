@@ -183,7 +183,7 @@ function catDirectoryV11(args) {
     if(!dossier||!Array.isArray(dossier.projets))continue;
     const p=dossier.profil||{};
     const name=[p.prenom1,p.prenom2,p.nom1,p.nom2].filter(Boolean).join(' ').trim()||dossier.email||ownerUid;
-    const projects=dossier.projets.filter(x=>x&&typeof x.operationId==='string'&&/^op-[A-Za-z0-9-]{8,150}$/.test(x.operationId)).map(x=>({operationId:x.operationId,projet:catProjectLabel_(x)}));
+    const projects=dossier.projets.filter(x=>x&&typeof x.operationId==='string'&&/^op-[A-Za-z0-9-]{8,150}$/.test(x.operationId)).map(x=>({operationId:x.operationId,projet:catProjectLabel_(x),dateSouscription:String(x.dateSouscription||''),actionsDeclarees:Number(x.actionsDeclarees||0)}));
     if(projects.length)out.push({ownerUid,name,projects});
     if(out.length>=1000)break;
   }
