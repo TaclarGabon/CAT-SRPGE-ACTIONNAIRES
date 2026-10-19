@@ -53,17 +53,20 @@ function watchReviews(u){
  stopReviews=onValue(ref(db,'controles/'+u.uid+'/operations'),snap=>{
    if(auth.currentUser?.uid!==u.uid)return;
    const d=snap.val()||{},projects=collectProjects();
-   const sent=projects.map(p=>({p,v:d[p.operationId]||{}})).filter(x=>x.v.aviseLe);
-   const unseen=sent.filter(({p,v})=>localStorage.getItem('catAvisLu:'+u.uid+':'+p.operationId)!==v.aviseLe);
+   const sent=projects.flatMap(p=>{const v=d[p.operationId]||{};const h=Array.isArray(v.historiqueAvis)?v.historiqueAvis:[];return h.length?h.filter(x=>x&&x.date).map(x=>({p,v:{...x,aviseLe:x.date}})):(v.aviseLe?[{p,v}]:[])}).sort((a,b)=>String(b.v.aviseLe).localeCompare(String(a.v.aviseLe)));
+   const key=({p,v})=>'catAvisLu:'+u.uid+':'+p.operationId+':'+v.aviseLe;
+   const unseen=sent.filter(x=>localStorage.getItem(key(x))!=='oui');
    $('alertBell').textContent=unseen.length?'🔔 '+unseen.length+' nouvelle(s) notification(s) de la Direction. Lis le suivi ci-dessous.':'🔔 Aucune nouvelle notification.';
    $('markNoticeRead').style.display=unseen.length?'inline-block':'none';
-   $('markNoticeRead').onclick=()=>{for(const {p,v} of unseen)localStorage.setItem('catAvisLu:'+u.uid+':'+p.operationId,v.aviseLe);$('alertBell').textContent='🔔 Notifications marquées comme lues sur cet appareil.';$('markNoticeRead').style.display='none'};
+   $('markNoticeRead').onclick=()=>{for(const x of unseen)localStorage.setItem(key(x),'oui');$('alertBell').textContent='🔔 Notifications marquées comme lues sur cet appareil.';$('markNoticeRead').style.display='none'};
+   const formatDate=s=>{const t=Date.parse(s||'');return Number.isFinite(t)?new Date(t).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'}):'Date inconnue'};
+   const historiques=sent.map(({p,v})=>'🔔 '+formatDate(v.aviseLe)+' — '+(p.projet||'Projet')+' : '+(v.etat||'Avis de la Direction')+(v.observation?' — '+v.observation:'')+(localStorage.getItem(key({p,v}))==='oui'?' [Lu]':' [Nouveau]'));
    const lines=projects.map(p=>{
      const v=d[p.operationId]||{};
      return (p.projet||'Projet')+' : '+(v.etat||'Dossier transmis — en attente de contrôle')+
        (v.observation?' — Message Direction : '+v.observation:'');
    });
-   $('reviewTimeline').textContent=lines.length?lines.join('\n'):'Aucun projet enregistré.';
+   $('reviewTimeline').textContent=(lines.length?lines.join('\n'):'Aucun projet enregistré.')+(historiques.length?'\n\nHistorique des notifications (plus récente en premier) :\n'+historiques.join('\n'):'\n\nAucune notification datée enregistrée.');
    $('reviewTimeline').style.whiteSpace='pre-line';
  },_=>{$('reviewTimeline').textContent='Suivi temporairement indisponible : accès Firebase à vérifier.'});
 }
